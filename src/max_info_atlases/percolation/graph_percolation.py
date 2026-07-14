@@ -421,7 +421,10 @@ class GraphPercolation:
         min_len = min(len(dent), len(self.pbond_vec))
 
         # Use only valid data points for integration
-        return np.trapz(np.abs(dent[:min_len]), x=self.pbond_vec[:min_len], axis=0)
+        # NumPy 2.4 removed the deprecated ``trapz`` alias. ``trapezoid`` is
+        # the same integration operation; retain the fallback for older NumPy.
+        integrate = np.trapezoid if hasattr(np, "trapezoid") else np.trapz
+        return integrate(np.abs(dent[:min_len]), x=self.pbond_vec[:min_len], axis=0)
 
     def score(self) -> float:
         """

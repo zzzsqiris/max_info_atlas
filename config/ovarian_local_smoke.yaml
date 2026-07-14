@@ -1,0 +1,73 @@
+run_name: "ovarian_local_smoke"
+description: "10,000-cell local smoke test using one professor-defined pipeline combination"
+
+input:
+  adata: XeniumOvarianData/prepared/small_10000/ovarian_small_10000.h5ad
+  xy_dir: XeniumOvarianData/prepared/small_10000/xy_coordinates
+  sections_file: XeniumOvarianData/prepared/small_10000/Sections.npy
+  section_column: section
+
+output:
+  base_dir: XeniumOvarianData/results/local_smoke_10000
+  features_dir: features
+  graphs_dir: graphs
+  clustering_dir: clustering
+  percolation_dir: percolation_results
+  edge_lists_dir: edge_lists
+  jobs_dir: jobs
+  logs_dir: logs
+  scores_csv: ovarian_percolation_scores.csv
+  reduced_scores_csv: ovarian_percolation_scores_reduced.csv
+
+steps:
+  features:
+    data_types:
+      - pca50
+
+  graphs:
+    k: 15
+    distances:
+      - correlation
+
+  clustering:
+    leiden:
+      enabled: true
+      data_types:
+        - pca50
+      distances:
+        - correlation
+      n_resolutions: 1
+      resolution_log_min: 0.0
+      resolution_log_max: 0.0
+
+  percolation:
+    max_k: 500
+    pbond_steps: 101
+
+  aggregation:
+    output_csv: ovarian_percolation_scores.csv
+
+hpc:
+  conda_env: xenium-mapinfo-clean
+  default_chunk_size: 1
+  resources:
+    features:
+      memory: "16G"
+      runtime: "2:00:00"
+      chunk_size: 1
+    graphs:
+      memory: "16G"
+      runtime: "2:00:00"
+      chunk_size: 1
+    clustering:
+      memory: "8G"
+      runtime: "1:00:00"
+      chunk_size: 1
+    percolation:
+      memory: "16G"
+      runtime: "4:00:00"
+      chunk_size: 1
+    aggregation:
+      memory: "4G"
+      runtime: "1:00:00"
+      chunk_size: 1

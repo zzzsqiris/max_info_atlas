@@ -1,0 +1,72 @@
+run_name: "ovarian_full_map_info"
+description: "Full 407,124-cell ovarian Map Information run"
+
+input:
+  adata: XeniumOvarianData/ovarian_xenium_genes.h5ad
+  xy_dir: XeniumOvarianData/prepared/xy_coordinates
+  sections_file: XeniumOvarianData/prepared/Sections.npy
+
+output:
+  base_dir: XeniumOvarianData/results/full_map_info
+  features_dir: features
+  graphs_dir: graphs
+  clustering_dir: clustering
+  percolation_dir: percolation_results
+  edge_lists_dir: edge_lists
+  jobs_dir: jobs
+  logs_dir: logs
+  scores_csv: ovarian_percolation_scores.csv
+  reduced_scores_csv: ovarian_percolation_scores_reduced.csv
+
+steps:
+  features:
+    data_types:
+      - pca50
+
+  graphs:
+    k: 15
+    distances:
+      - correlation
+
+  clustering:
+    leiden:
+      enabled: true
+      data_types:
+        - pca50
+      distances:
+        - correlation
+      n_resolutions: 1
+      resolution_log_min: 0.0
+      resolution_log_max: 0.0
+
+  percolation:
+    max_k: 500
+    pbond_steps: 101
+
+  aggregation:
+    output_csv: ovarian_percolation_scores.csv
+
+hpc:
+  conda_env: max_info_atlases
+  default_chunk_size: 1
+  resources:
+    features:
+      memory: "64G"
+      runtime: "24:00:00"
+      chunk_size: 1
+    graphs:
+      memory: "256G"
+      runtime: "4:00:00"
+      chunk_size: 1
+    clustering:
+      memory: "128G"
+      runtime: "2:00:00"
+      chunk_size: 1
+    percolation:
+      memory: "64G"
+      runtime: "12:00:00"
+      chunk_size: 1
+    aggregation:
+      memory: "8G"
+      runtime: "1:00:00"
+      chunk_size: 1

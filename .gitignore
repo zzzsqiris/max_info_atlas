@@ -15,3 +15,18 @@ dist/
 # Test outputs (optional, keep if you want them)
 test_full_aggregation.csv
 test_scores_*.csv
+
+# macOS
+.DS_Store
+
+# Xenium raw and prepared data
+XeniumOvarianData/*.h5ad
+XeniumOvarianData/prepared/
+
+# Xenium generated results
+XeniumOvarianData/results/
+
+# Common large data formats
+*.h5
+*.hdf5
+*.loom
