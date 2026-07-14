@@ -4,8 +4,8 @@
 This script does not normalize expression, calculate PCA, or modify the source
 AnnData file. It only exports:
 
-    prepared/Sections.npy
-    prepared/xy_coordinates/<section>_XY.npy
+    data/processed/Sections.npy
+    data/processed/xy_coordinates/<section>_XY.npy
 
 Optionally, ``--small-n-cells`` creates a spatially contiguous AnnData subset
 for a local smoke test. That subset is only for checking that the pipeline can
@@ -21,9 +21,9 @@ import h5py
 import numpy as np
 
 
-HERE = Path(__file__).resolve().parent
-DEFAULT_INPUT = HERE / "ovarian_xenium_genes.h5ad"
-DEFAULT_OUTPUT = HERE / "prepared"
+REPRODUCTION_DIR = Path(__file__).resolve().parent.parent
+DEFAULT_INPUT = REPRODUCTION_DIR / "data" / "raw" / "ovarian_xenium_genes.h5ad"
+DEFAULT_OUTPUT = REPRODUCTION_DIR / "data" / "processed"
 
 
 def parse_args() -> argparse.Namespace:

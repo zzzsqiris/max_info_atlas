@@ -2,12 +2,12 @@ run_name: "ovarian_full_map_info"
 description: "Full 407,124-cell ovarian Map Information run"
 
 input:
-  adata: XeniumOvarianData/ovarian_xenium_genes.h5ad
-  xy_dir: XeniumOvarianData/prepared/xy_coordinates
-  sections_file: XeniumOvarianData/prepared/Sections.npy
+  adata: XeniumOvarianReproduction/data/raw/ovarian_xenium_genes.h5ad
+  xy_dir: XeniumOvarianReproduction/data/processed/xy_coordinates
+  sections_file: XeniumOvarianReproduction/data/processed/Sections.npy
 
 output:
-  base_dir: XeniumOvarianData/results/full_map_info
+  base_dir: XeniumOvarianReproduction/results/full_map_info
   features_dir: features
   graphs_dir: graphs
   clustering_dir: clustering

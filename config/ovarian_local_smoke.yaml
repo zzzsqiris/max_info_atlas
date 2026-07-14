@@ -2,13 +2,13 @@ run_name: "ovarian_local_smoke"
 description: "10,000-cell local smoke test using one professor-defined pipeline combination"
 
 input:
-  adata: XeniumOvarianData/prepared/small_10000/ovarian_small_10000.h5ad
-  xy_dir: XeniumOvarianData/prepared/small_10000/xy_coordinates
-  sections_file: XeniumOvarianData/prepared/small_10000/Sections.npy
+  adata: XeniumOvarianReproduction/data/processed/small_10000/ovarian_small_10000.h5ad
+  xy_dir: XeniumOvarianReproduction/data/processed/small_10000/xy_coordinates
+  sections_file: XeniumOvarianReproduction/data/processed/small_10000/Sections.npy
   section_column: section
 
 output:
-  base_dir: XeniumOvarianData/results/local_smoke_10000
+  base_dir: XeniumOvarianReproduction/results/local_smoke_10000
   features_dir: features
   graphs_dir: graphs
   clustering_dir: clustering
