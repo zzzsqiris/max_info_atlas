@@ -19,13 +19,6 @@ test_scores_*.csv
 # macOS
 .DS_Store
 
-# Xenium raw and prepared data
-XeniumOvarianData/*.h5ad
-XeniumOvarianData/prepared/
-
-# Xenium generated results
-XeniumOvarianData/results/
-
 # Common large data formats
 *.h5
 *.hdf5
@@ -34,3 +27,15 @@ XeniumOvarianData/results/
 # Cython generated files
 src/max_info_atlases/cython/*.c
 src/max_info_atlases/cython/*.so
+
+# Ovarian Xenium data
+XeniumOvarianReproduction/data/raw/
+XeniumOvarianReproduction/data/processed/
+
+# Generated pipeline results
+XeniumOvarianReproduction/results/
+
+# Keep project documentation and scripts tracked
+!XeniumOvarianReproduction/README.md
+!XeniumOvarianReproduction/scripts/
+!XeniumOvarianReproduction/scripts/**
