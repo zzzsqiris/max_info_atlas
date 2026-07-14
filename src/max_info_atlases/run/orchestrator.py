@@ -603,6 +603,7 @@ class RunOrchestrator:
             job_name=f"{config.run_name}_{step}",
             memory=resources['memory'],
             runtime=resources['runtime'],
+            conda_env=config.hpc_conda_env,
             worker_command=worker_cmd,
             hold_jid=hold_jid,
             dry_run=dry_run,

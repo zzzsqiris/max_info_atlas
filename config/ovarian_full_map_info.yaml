@@ -47,7 +47,7 @@ steps:
     output_csv: ovarian_percolation_scores.csv
 
 hpc:
-  conda_env: max_info_atlases
+  conda_env: xenium-mapinfo
   default_chunk_size: 1
   resources:
     features:
