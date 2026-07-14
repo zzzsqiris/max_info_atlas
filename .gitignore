@@ -30,3 +30,7 @@ XeniumOvarianData/results/
 *.h5
 *.hdf5
 *.loom
+
+# Cython generated files
+src/max_info_atlases/cython/*.c
+src/max_info_atlases/cython/*.so
