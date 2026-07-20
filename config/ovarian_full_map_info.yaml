@@ -35,9 +35,9 @@ steps:
         - pca50
       distances:
         - correlation
-      n_resolutions: 1
-      resolution_log_min: 0.0
-      resolution_log_max: 0.0
+      n_resolutions: 50
+      resolution_log_min: -2.0
+      resolution_log_max: 2.0
 
   percolation:
     max_k: 500
