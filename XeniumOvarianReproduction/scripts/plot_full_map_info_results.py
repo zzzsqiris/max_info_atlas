@@ -14,16 +14,9 @@ from matplotlib.lines import Line2D
 
 
 ROOT = Path(__file__).resolve().parents[2]
-RESULTS = ROOT / "XeniumOvarianReproduction" / "results" / "full_map_info"
-PERCOLATION = (
-    RESULTS
-    / "percolation_results"
-    / "LeidenPCA50Correlation"
-    / "res_1p000"
-    / "ovarian.npy.npz"
+DEFAULT_RESULTS_DIR = (
+    ROOT / "XeniumOvarianReproduction" / "results" / "full_map_info"
 )
-SCORE_FILE = PERCOLATION.with_name("ovarian.score")
-OUTPUT_DIR = RESULTS / "figures"
 XY_FILE = (
     ROOT
     / "XeniumOvarianReproduction"
@@ -32,7 +25,6 @@ XY_FILE = (
     / "xy_coordinates"
     / "ovarian_XY.npy"
 )
-CLUSTERING_DIR = RESULTS / "clustering" / "LeidenPCA50Correlation"
 
 
 def parse_args():
@@ -45,6 +37,12 @@ def parse_args():
         type=float,
         help="Leiden resolution to use for the spatial cluster plot",
     )
+    parser.add_argument(
+        "--results-dir",
+        type=Path,
+        default=DEFAULT_RESULTS_DIR,
+        help="Result directory containing clustering and percolation outputs",
+    )
     return parser.parse_args()
 
 
@@ -52,8 +50,8 @@ def format_resolution_dirname(resolution):
     return f"res_{resolution:.3f}".replace(".", "p")
 
 
-def load_results():
-    with np.load(PERCOLATION) as data:
+def load_results(percolation_file):
+    with np.load(percolation_file) as data:
         return {
             "xy": data["XY"],
             "labels": data["type_vec"],
@@ -64,14 +62,14 @@ def load_results():
         }
 
 
-def load_scores():
-    raw, normalized = SCORE_FILE.read_text().strip().split("\t")
+def load_scores(score_file):
+    raw, normalized = score_file.read_text().strip().split("\t")
     return float(raw), float(normalized)
 
 
-def load_spatial_results(resolution):
+def load_spatial_results(resolution, clustering_dir):
     resolution_dirname = format_resolution_dirname(resolution)
-    labels_file = CLUSTERING_DIR / resolution_dirname / "ovarian.npy"
+    labels_file = clustering_dir / resolution_dirname / "ovarian.npy"
 
     if not XY_FILE.exists():
         raise FileNotFoundError(f"Spatial XY file not found: {XY_FILE}")
@@ -104,7 +102,7 @@ def load_spatial_results(resolution):
     }
 
 
-def plot_entropy_curves(results, raw_score, normalized_score):
+def plot_entropy_curves(results, raw_score, normalized_score, output_dir):
     ent_real = results["ent_real"]
     ent_perm = results["ent_perm"]
     threshold = results["pbond"][: len(ent_real)]
@@ -168,7 +166,7 @@ def plot_entropy_curves(results, raw_score, normalized_score):
         fontsize=10,
     )
     fig.tight_layout()
-    output = OUTPUT_DIR / "full_percolation_entropy_curves.png"
+    output = output_dir / "full_percolation_entropy_curves.png"
     fig.savefig(output, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     return output
@@ -177,7 +175,13 @@ def plot_entropy_curves(results, raw_score, normalized_score):
 def cluster_colors(n_clusters):
     tab20 = list(plt.get_cmap("tab20").colors)
     tab20b = list(plt.get_cmap("tab20b").colors)
-    return (tab20 + tab20b)[:n_clusters]
+    colors = tab20 + tab20b
+    if n_clusters > len(colors):
+        raise ValueError(
+            f"Deterministic palette supports at most {len(colors)} clusters; "
+            f"found {n_clusters}"
+        )
+    return colors[:n_clusters]
 
 
 def build_label_color_mapping(labels):
@@ -187,7 +191,7 @@ def build_label_color_mapping(labels):
     return {label: color for label, color in zip(unique_labels, colors)}
 
 
-def plot_spatial_clusters(results):
+def plot_spatial_clusters(results, output_dir):
     xy = results["xy"]
     labels = results["labels"]
     resolution = results["resolution"]
@@ -247,7 +251,7 @@ def plot_spatial_clusters(results):
         handletextpad=0.4,
     )
     fig.tight_layout()
-    output = OUTPUT_DIR / f"full_spatial_leiden_clusters_{resolution_dirname}.png"
+    output = output_dir / f"full_spatial_leiden_clusters_{resolution_dirname}.png"
     fig.savefig(output, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     return output
@@ -255,24 +259,38 @@ def plot_spatial_clusters(results):
 
 def main():
     args = parse_args()
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    spatial_results = load_spatial_results(args.resolution)
-    spatial_path = plot_spatial_clusters(spatial_results)
+    results_dir = args.results_dir
+    output_dir = results_dir / "figures"
+    clustering_dir = results_dir / "clustering" / "LeidenPCA50Correlation"
+    percolation_file = (
+        results_dir
+        / "percolation_results"
+        / "LeidenPCA50Correlation"
+        / "res_1p000"
+        / "ovarian.npy.npz"
+    )
+    score_file = percolation_file.with_name("ovarian.score")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    spatial_results = load_spatial_results(args.resolution, clustering_dir)
+    spatial_path = plot_spatial_clusters(spatial_results, output_dir)
 
     print(f"XY shape: {spatial_results['xy'].shape}")
     print(f"Label shape: {spatial_results['labels'].shape}")
     print(f"Clusters: {len(np.unique(spatial_results['labels']))}")
     print(spatial_path)
 
-    if PERCOLATION.exists() and SCORE_FILE.exists():
-        results = load_results()
-        raw_score, normalized_score = load_scores()
-        entropy_path = plot_entropy_curves(results, raw_score, normalized_score)
+    if percolation_file.exists() and score_file.exists():
+        results = load_results(percolation_file)
+        raw_score, normalized_score = load_scores(score_file)
+        entropy_path = plot_entropy_curves(
+            results, raw_score, normalized_score, output_dir
+        )
         print(entropy_path)
     else:
         print(
             "Skipping percolation entropy plot because its existing inputs are missing: "
-            f"{PERCOLATION}, {SCORE_FILE}"
+            f"{percolation_file}, {score_file}"
         )
 
 

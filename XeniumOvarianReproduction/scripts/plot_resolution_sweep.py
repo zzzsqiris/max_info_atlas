@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Plot raw Map Information across the ovarian Leiden resolution sweep."""
 
+import argparse
 from pathlib import Path
 
 import matplotlib
@@ -12,10 +13,9 @@ import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parents[2]
-RESULTS = ROOT / "XeniumOvarianReproduction" / "results" / "full_map_info"
-INPUT_CSV = RESULTS / "ovarian_percolation_scores_reduced.csv"
-FIGURES_DIR = RESULTS / "figures"
-RANKED_CSV = RESULTS / "raw_map_information_ranked.csv"
+DEFAULT_RESULTS_DIR = (
+    ROOT / "XeniumOvarianReproduction" / "results" / "full_map_info"
+)
 
 Y_COLUMN = "raw_score_weighted_mean"
 BEST_COLUMNS = [
@@ -26,9 +26,24 @@ BEST_COLUMNS = [
 ]
 
 
-def load_results():
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Plot an ovarian Map Information resolution sweep."
+    )
+    parser.add_argument(
+        "--results-dir",
+        type=Path,
+        default=DEFAULT_RESULTS_DIR,
+        help="Result directory containing ovarian_percolation_scores_reduced.csv",
+    )
+    return parser.parse_args()
+
+
+def load_results(input_csv):
     """Load and validate the reduced resolution-sweep results."""
-    data = pd.read_csv(INPUT_CSV)
+    if not input_csv.exists():
+        raise FileNotFoundError(f"Reduced score CSV not found: {input_csv}")
+    data = pd.read_csv(input_csv)
     missing = [column for column in BEST_COLUMNS if column not in data.columns]
     if missing:
         raise ValueError(f"Missing required columns: {', '.join(missing)}")
@@ -43,14 +58,16 @@ def load_results():
             "required values"
         )
     if data.empty:
-        raise ValueError(f"No results found in {INPUT_CSV}")
+        raise ValueError(f"No results found in {input_csv}")
     if (data["resolution"] <= 0).any():
         raise ValueError("Resolution values must be positive for a logarithmic x-axis")
 
     return data
 
 
-def plot_score_curve(data, x_column, x_label, title, output_name, log_x=False):
+def plot_score_curve(
+    data, x_column, x_label, title, output_name, figures_dir, log_x=False
+):
     """Plot one x-sorted raw Map Information curve and annotate its maximum."""
     sorted_data = data.sort_values(x_column, kind="stable")
     best = data.loc[data[Y_COLUMN].idxmax()]
@@ -108,15 +125,21 @@ def plot_score_curve(data, x_column, x_label, title, output_name, log_x=False):
     ax.grid(True, color="0.9", linewidth=0.8)
     fig.tight_layout()
 
-    output = FIGURES_DIR / output_name
+    output = figures_dir / output_name
     fig.savefig(output, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     return output
 
 
 def main():
-    data = load_results()
-    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    args = parse_args()
+    results_dir = args.results_dir
+    input_csv = results_dir / "ovarian_percolation_scores_reduced.csv"
+    figures_dir = results_dir / "figures"
+    ranked_csv = results_dir / "raw_map_information_ranked.csv"
+
+    data = load_results(input_csv)
+    figures_dir.mkdir(parents=True, exist_ok=True)
 
     output_paths = [
         plot_score_curve(
@@ -125,6 +148,7 @@ def main():
             x_label="Leiden resolution",
             title="Raw Map Information vs. Leiden resolution",
             output_name="raw_map_information_vs_resolution.png",
+            figures_dir=figures_dir,
             log_x=True,
         ),
         plot_score_curve(
@@ -133,6 +157,7 @@ def main():
             x_label="Total number of types",
             title="Raw Map Information vs. number of types",
             output_name="raw_map_information_vs_number_of_types.png",
+            figures_dir=figures_dir,
         ),
         plot_score_curve(
             data,
@@ -140,6 +165,7 @@ def main():
             x_label="Total number of types",
             title="Raw Map Information vs. number of types (log scale)",
             output_name="raw_map_information_vs_number_of_types_log.png",
+            figures_dir=figures_dir,
             log_x=True,
         ),
         plot_score_curve(
@@ -148,18 +174,19 @@ def main():
             x_label="Type distribution entropy",
             title="Raw Map Information vs. type distribution entropy",
             output_name="raw_map_information_vs_type_entropy.png",
+            figures_dir=figures_dir,
         ),
     ]
 
     ranked = data.sort_values(Y_COLUMN, ascending=False, kind="stable")
-    ranked.to_csv(RANKED_CSV, index=False)
+    ranked.to_csv(ranked_csv, index=False)
     best = ranked.iloc[0]
 
     print("Best row:")
     for column in BEST_COLUMNS:
         print(f"  {column}: {best[column]}")
     print("Generated outputs:")
-    for path in [*output_paths, RANKED_CSV]:
+    for path in [*output_paths, ranked_csv]:
         print(path)
 
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Plot full ovarian Leiden cluster maps as bounding-box-clipped Voronoi cells."""
 
+import argparse
 import csv
 import json
 import resource
@@ -19,18 +20,40 @@ from matplotlib.lines import Line2D
 from scipy.ndimage import binary_dilation
 from scipy.spatial import Voronoi
 
+from plot_full_map_info_results import (
+    build_label_color_mapping,
+    cluster_colors,
+    format_resolution_dirname,
+)
+
 
 ROOT = Path(__file__).resolve().parents[2]
 REPRODUCTION = ROOT / "XeniumOvarianReproduction"
-RESULTS = REPRODUCTION / "results" / "full_map_info"
+DEFAULT_RESULTS_DIR = REPRODUCTION / "results" / "full_map_info"
 XY_FILE = REPRODUCTION / "data" / "processed" / "xy_coordinates" / "ovarian_XY.npy"
-CLUSTERING_DIR = RESULTS / "clustering" / "LeidenPCA50Correlation"
-SCORES_FILE = RESULTS / "ovarian_percolation_scores_reduced.csv"
-OUTPUT_DIR = RESULTS / "figures"
-BENCHMARK_FILE = OUTPUT_DIR / "voronoi_benchmark.json"
-RESOLUTIONS = (0.095, 1.099)
+DEFAULT_RESOLUTIONS = (0.095, 1.099)
 MASK_PIXEL_SIZE = 10.0
 MASK_RADIUS = 30.0
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Plot ovarian Leiden clusters as Voronoi cells."
+    )
+    parser.add_argument(
+        "--results-dir",
+        type=Path,
+        default=DEFAULT_RESULTS_DIR,
+        help="Result directory containing clustering outputs and reduced scores",
+    )
+    parser.add_argument(
+        "--resolutions",
+        type=float,
+        nargs="+",
+        default=DEFAULT_RESOLUTIONS,
+        help="One or more Leiden resolutions to plot",
+    )
+    return parser.parse_args()
 
 
 def peak_rss_mib():
@@ -41,30 +64,15 @@ def peak_rss_mib():
     return peak / (1024**2)
 
 
-def cluster_colors(n_clusters):
-    """Match the deterministic mapping used by plot_full_map_info_results.py."""
-    tab20 = list(plt.get_cmap("tab20").colors)
-    tab20b = list(plt.get_cmap("tab20b").colors)
-    colors = tab20 + tab20b
-    if n_clusters > len(colors):
-        raise ValueError(
-            f"Existing deterministic palette supports at most {len(colors)} clusters; "
-            f"found {n_clusters}"
-        )
-    return colors[:n_clusters]
-
-
-def resolution_dirname(resolution):
-    return f"res_{resolution:.3f}".replace(".", "p")
-
-
-def load_score_rows():
+def load_score_rows(scores_file, resolutions):
     """Load the requested raw scores and declared type counts from the sweep CSV."""
-    with SCORES_FILE.open(newline="") as handle:
+    if not scores_file.exists():
+        raise FileNotFoundError(f"Reduced score CSV not found: {scores_file}")
+    with scores_file.open(newline="") as handle:
         rows = list(csv.DictReader(handle))
 
     selected = {}
-    for resolution in RESOLUTIONS:
+    for resolution in resolutions:
         matches = [
             row
             for row in rows
@@ -73,7 +81,7 @@ def load_score_rows():
         if len(matches) != 1:
             raise ValueError(
                 f"Expected one score row for resolution {resolution:.3f}, "
-                f"found {len(matches)} in {SCORES_FILE}"
+                f"found {len(matches)} in {scores_file}"
             )
         row = matches[0]
         selected[resolution] = {
@@ -83,7 +91,7 @@ def load_score_rows():
     return selected
 
 
-def load_inputs():
+def load_inputs(clustering_dir, resolutions):
     """Load full XY and original labels without changing their row order."""
     xy = np.load(XY_FILE)
     if xy.ndim != 2 or xy.shape[1] != 2:
@@ -94,12 +102,16 @@ def load_inputs():
         raise ValueError("Duplicate XY coordinates cannot receive distinct Voronoi cells")
 
     labels_by_resolution = {}
-    for resolution in RESOLUTIONS:
+    for resolution in resolutions:
         label_file = (
-            CLUSTERING_DIR
-            / resolution_dirname(resolution)
+            clustering_dir
+            / format_resolution_dirname(resolution)
             / "ovarian.npy"
         )
+        if not label_file.exists():
+            raise FileNotFoundError(
+                f"Clustering labels not found for resolution {resolution}: {label_file}"
+            )
         labels = np.load(label_file)
         if labels.ndim != 1:
             raise ValueError(f"Expected one-dimensional labels in {label_file}, got {labels.shape}")
@@ -218,9 +230,8 @@ def finite_clipped_polygons(voronoi, bounds):
 
 def facecolors_for_labels(labels):
     """Map labels to colors without reordering cells."""
-    unique_labels = np.unique(labels)
-    colors = cluster_colors(len(unique_labels))
-    label_to_color = {label: colors[index] for index, label in enumerate(unique_labels)}
+    unique_labels = np.sort(np.unique(labels))
+    label_to_color = build_label_color_mapping(labels)
     return unique_labels, np.asarray([label_to_color[label] for label in labels])
 
 
@@ -261,7 +272,9 @@ def add_tissue_display_mask(ax, tissue_mask, bounds):
     )
 
 
-def plot_resolution(polygons, bounds, tissue_mask, labels, resolution, score_row):
+def plot_resolution(
+    polygons, bounds, tissue_mask, labels, resolution, score_row, output_dir
+):
     unique_labels, facecolors = facecolors_for_labels(labels)
     if len(unique_labels) != score_row["number_of_types"]:
         raise ValueError(
@@ -321,7 +334,7 @@ def plot_resolution(polygons, bounds, tissue_mask, labels, resolution, score_row
     )
     fig.tight_layout()
 
-    output = OUTPUT_DIR / f"voronoi_clusters_{resolution_dirname(resolution)}.png"
+    output = output_dir / f"voronoi_clusters_{format_resolution_dirname(resolution)}.png"
     fig.savefig(output, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     return output
@@ -340,7 +353,15 @@ def record_stage(benchmark, name, started):
 
 
 def main():
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    args = parse_args()
+    results_dir = args.results_dir
+    resolutions = tuple(args.resolutions)
+    clustering_dir = results_dir / "clustering" / "LeidenPCA50Correlation"
+    scores_file = results_dir / "ovarian_percolation_scores_reduced.csv"
+    output_dir = results_dir / "figures"
+    benchmark_file = output_dir / "voronoi_benchmark.json"
+
+    output_dir.mkdir(parents=True, exist_ok=True)
     total_started = time.perf_counter()
     benchmark = {
         "cell_count": None,
@@ -349,8 +370,8 @@ def main():
     }
 
     started = time.perf_counter()
-    xy, labels_by_resolution = load_inputs()
-    score_rows = load_score_rows()
+    xy, labels_by_resolution = load_inputs(clustering_dir, resolutions)
+    score_rows = load_score_rows(scores_file, resolutions)
     benchmark["cell_count"] = len(xy)
     record_stage(benchmark, "load_and_validate", started)
 
@@ -382,7 +403,7 @@ def main():
     record_stage(benchmark, "tissue_display_mask", started)
 
     outputs = []
-    for resolution in RESOLUTIONS:
+    for resolution in resolutions:
         started = time.perf_counter()
         output = plot_resolution(
             polygons,
@@ -391,18 +412,19 @@ def main():
             labels_by_resolution[resolution],
             resolution,
             score_rows[resolution],
+            output_dir,
         )
         outputs.append(output)
         record_stage(benchmark, f"render_{resolution:.3f}", started)
 
     benchmark["total_seconds"] = time.perf_counter() - total_started
     benchmark["final_peak_rss_mib"] = peak_rss_mib()
-    BENCHMARK_FILE.write_text(json.dumps(benchmark, indent=2) + "\n")
+    benchmark_file.write_text(json.dumps(benchmark, indent=2) + "\n")
 
     print("Generated outputs:")
     for output in outputs:
         print(output)
-    print(BENCHMARK_FILE)
+    print(benchmark_file)
 
 
 if __name__ == "__main__":
