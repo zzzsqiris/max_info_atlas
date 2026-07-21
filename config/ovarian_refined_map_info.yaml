@@ -12,7 +12,7 @@ output:
   graphs_dir: /u/home/s/sqzhong/project-rwollman/max_info_atlas/XeniumOvarianReproduction/results/full_map_info/graphs
   clustering_dir: clustering
   percolation_dir: percolation_results
-  edge_lists_dir: edge_lists
+  edge_lists_dir: /u/home/s/sqzhong/project-rwollman/max_info_atlas/XeniumOvarianReproduction/results/full_map_info/edge_lists
   jobs_dir: jobs
   logs_dir: logs
   scores_csv: ovarian_percolation_scores.csv
