@@ -72,6 +72,28 @@ class TestLeidenClustering:
         
         assert params['method'] == 'leiden'
         assert params['resolution'] == 1.0
+        assert params['random_seed'] == 42
+
+    def test_custom_random_seed(self):
+        """Test that a custom Leiden seed is retained."""
+        clustering = LeidenClustering(resolution=1.0, random_seed=7)
+
+        assert clustering.random_seed == 7
+        assert clustering.get_params()['random_seed'] == 7
+
+    def test_fit_is_deterministic(self):
+        """Repeated independent fits with the same seed return the same labels."""
+        pytest.importorskip("igraph")
+        edges = np.array([
+            [0, 1], [1, 2], [2, 3], [3, 0],
+            [4, 5], [5, 6], [6, 7], [7, 4],
+            [0, 4], [1, 5], [2, 6], [3, 7],
+        ])
+
+        first = LeidenClustering(resolution=1.0, random_seed=42).fit(edges)
+        second = LeidenClustering(resolution=1.0, random_seed=42).fit(edges)
+
+        np.testing.assert_array_equal(first, second)
     
     @pytest.mark.skipif(
         True,  # Skip by default as it requires igraph

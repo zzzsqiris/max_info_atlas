@@ -26,6 +26,7 @@ class MethodSpec:
     n_resolutions: int = 50
     resolution_log_min: float = -1.0   # log10 of minimum resolution
     resolution_log_max: float = 2.5    # log10 of maximum resolution
+    random_seed: int = 42              # Leiden RNG seed
     levels: List[str] = field(default_factory=list)  # Preexisting only
     k_jaccard: int = 15  # PhenoGraph only
 
@@ -357,6 +358,7 @@ class RunConfig:
                 n_resolutions=method_cfg.get('n_resolutions', 50),
                 resolution_log_min=method_cfg.get('resolution_log_min', -1.0),
                 resolution_log_max=method_cfg.get('resolution_log_max', 2.5),
+                random_seed=int(method_cfg.get('random_seed', 42)),
                 levels=method_cfg.get('levels', []),
                 k_jaccard=method_cfg.get('k_jaccard', 15),
             )

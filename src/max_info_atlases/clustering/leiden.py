@@ -4,6 +4,8 @@ Leiden clustering implementation.
 Works for both cell type features (via FEL graph) and environment features.
 """
 
+import random
+
 import numpy as np
 from typing import Dict, Any, Optional, Union
 from pathlib import Path
@@ -26,6 +28,7 @@ class LeidenClustering(ClusteringMethod):
         log_min: float = -1.0,
         log_max: float = 2.5,
         objective: str = 'modularity',
+        random_seed: int = 42,
     ):
         """
         Initialize Leiden clustering.
@@ -37,9 +40,11 @@ class LeidenClustering(ClusteringMethod):
             log_min: log10 of minimum resolution (default -1.0 → 0.1)
             log_max: log10 of maximum resolution (default 2.5 → ~316)
             objective: Objective function ('modularity' or 'CPM')
+            random_seed: Seed used to initialize igraph's RNG for each fit
         """
         self.n_resolutions = n_resolutions
         self.objective = objective
+        self.random_seed = int(random_seed)
         
         # Determine resolution
         if resolution is not None:
@@ -73,6 +78,10 @@ class LeidenClustering(ClusteringMethod):
         # Create graph
         graph = igraph.Graph(n=n_nodes, edges=edge_list.tolist())
         
+        # Reset igraph's global RNG for every fit so independent resolution
+        # jobs start from the same deterministic random state.
+        igraph.set_random_number_generator(random.Random(self.random_seed))
+
         # Run Leiden clustering
         partition = graph.community_leiden(
             resolution_parameter=self.resolution,
@@ -88,6 +97,7 @@ class LeidenClustering(ClusteringMethod):
             'resolution': self.resolution,
             'resolution_idx': self.resolution_idx,
             'objective': self.objective,
+            'random_seed': self.random_seed,
         }
 
 
@@ -99,6 +109,7 @@ def run_leiden_on_file(
     n_resolutions: int = 50,
     log_min: float = -1.0,
     log_max: float = 2.5,
+    random_seed: int = 42,
 ) -> None:
     """
     Run Leiden clustering on an FEL.npy file and save results by section.
@@ -113,6 +124,7 @@ def run_leiden_on_file(
         n_resolutions: Total number of resolutions in the grid (determines spacing)
         log_min: log10 of minimum resolution (default -1.0 → 0.1)
         log_max: log10 of maximum resolution (default 2.5 → ~316)
+        random_seed: Seed used to initialize igraph's RNG for this job
     """
     # Load edge list
     edge_list = np.load(input_npy)
@@ -123,6 +135,7 @@ def run_leiden_on_file(
         n_resolutions=n_resolutions,
         log_min=log_min,
         log_max=log_max,
+        random_seed=random_seed,
     )
     
     # Fit

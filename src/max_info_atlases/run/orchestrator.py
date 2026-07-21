@@ -271,7 +271,8 @@ class RunOrchestrator:
         """
         Generate job list for clustering.
         
-        Format: method\\tinput_file\\toutput_dir\\tres_idx\\tsections_file
+        Format: method\\tinput_file\\toutput_dir\\tres_idx\\tsections_file\\t
+                n_resolutions\\tlog_min\\tlog_max\\trandom_seed
         
         Note: the 'method' field is new (prepended) to distinguish
         Leiden vs PhenoGraph in the clustering worker.
@@ -330,6 +331,7 @@ class RunOrchestrator:
                         jobs.append(
                             f"{method.name}\t{graph_file}\t{output_dir}\t{res_idx}\t{config.sections_file}"
                             f"\t{method.n_resolutions}\t{method.resolution_log_min}\t{method.resolution_log_max}"
+                            f"\t{method.random_seed}"
                         )
         
         if skipped > 0:

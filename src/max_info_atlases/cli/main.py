@@ -202,7 +202,9 @@ def cluster():
 @click.option('--resolution-idx', type=int, help='Resolution index (0-49)')
 @click.option('--sections', type=click.Path(exists=True),
               help='Sections.npy file for splitting output')
-def cluster_leiden(input_file, output_dir, resolution, resolution_idx, sections):
+@click.option('--random-seed', type=int, default=42, show_default=True,
+              help='Seed for deterministic Leiden optimization')
+def cluster_leiden(input_file, output_dir, resolution, resolution_idx, sections, random_seed):
     """Run Leiden clustering on an edge list graph."""
     import numpy as np
     from ..clustering.leiden import LeidenClustering
@@ -212,7 +214,11 @@ def cluster_leiden(input_file, output_dir, resolution, resolution_idx, sections)
     
     from ..clustering.base import format_resolution_dirname
     
-    clustering = LeidenClustering(resolution=resolution, resolution_idx=resolution_idx)
+    clustering = LeidenClustering(
+        resolution=resolution,
+        resolution_idx=resolution_idx,
+        random_seed=random_seed,
+    )
     click.echo(f"Running Leiden with resolution={clustering.resolution} (idx={resolution_idx})")
     
     assignments = clustering.fit(edge_list)
@@ -1132,9 +1138,7 @@ def run_graph(chunk_file):
 
 @cli.command('run-clustering')
 @click.option('--chunk-file', '-f', required=True, type=click.Path(exists=True),
-              help='Chunk file with job parameters. Supports two formats:\n'
-                   'v1 (4 fields): input_file\\toutput_dir\\tres_idx\\tsections_file\n'
-                   'v2 (5 fields): method\\tinput_file\\toutput_dir\\tres_idx\\tsections_file')
+              help='Chunk file with clustering job parameters')
 def run_clustering(chunk_file):
     """Worker for clustering (processes chunk of Leiden or PhenoGraph jobs)."""
     from ..uge.job_generator import read_job_list
@@ -1148,31 +1152,41 @@ def run_clustering(chunk_file):
         parts = job.split('\t')
         
         # Detect format:
+        #   v5 (9 fields): method  input  output  res_idx  sections  n_resolutions  log_min  log_max  random_seed
         #   v4 (8 fields): method  input  output  res_idx  sections  n_resolutions  log_min  log_max
         #   v3 (6 fields): method  input  output  res_idx  sections  n_resolutions
         #   v2 (5 fields): method  input  output  res_idx  sections
         #   v1 (4 fields): input   output res_idx sections
-        if len(parts) >= 8:
+        if len(parts) >= 9:
+            method, input_file, output_dir, res_idx, sections_file, n_resolutions, log_min, log_max, random_seed = (
+                parts[0], parts[1], parts[2], int(parts[3]), parts[4],
+                int(parts[5]), float(parts[6]), float(parts[7]), int(parts[8])
+            )
+        elif len(parts) >= 8:
             method, input_file, output_dir, res_idx, sections_file, n_resolutions, log_min, log_max = (
                 parts[0], parts[1], parts[2], int(parts[3]), parts[4],
                 int(parts[5]), float(parts[6]), float(parts[7])
             )
+            random_seed = 42
         elif len(parts) >= 6:
             method, input_file, output_dir, res_idx, sections_file, n_resolutions = (
                 parts[0], parts[1], parts[2], int(parts[3]), parts[4], int(parts[5])
             )
             log_min, log_max = -1.0, 2.5
+            random_seed = 42
         elif len(parts) >= 5:
             method, input_file, output_dir, res_idx, sections_file = (
                 parts[0], parts[1], parts[2], int(parts[3]), parts[4]
             )
             n_resolutions, log_min, log_max = 50, -1.0, 2.5
+            random_seed = 42
         elif len(parts) >= 4:
             method = 'leiden'  # backward compatible default
             input_file, output_dir, res_idx, sections_file = (
                 parts[0], parts[1], int(parts[2]), parts[3]
             )
             n_resolutions, log_min, log_max = 50, -1.0, 2.5
+            random_seed = 42
         else:
             click.echo(f"  Skipping malformed job: {job}", err=True)
             continue
@@ -1183,7 +1197,10 @@ def run_clustering(chunk_file):
         resolution = resolution_values[res_idx]
         res_dirname = format_resolution_dirname(resolution)
         
-        click.echo(f"  {method}: {input_file} -> {output_dir}/{res_dirname}")
+        seed_text = f" (random_seed={random_seed})" if method == 'leiden' else ""
+        click.echo(
+            f"  {method}: {input_file} -> {output_dir}/{res_dirname}{seed_text}"
+        )
         
         # Dispatch to the right clustering method
         if method == 'leiden':
@@ -1195,6 +1212,7 @@ def run_clustering(chunk_file):
                 n_resolutions=n_resolutions,
                 log_min=log_min,
                 log_max=log_max,
+                random_seed=random_seed,
             )
         elif method == 'phenograph':
             run_phenograph_on_file(
