@@ -102,7 +102,14 @@ def load_spatial_results(resolution, clustering_dir):
     }
 
 
-def plot_entropy_curves(results, raw_score, normalized_score, output_dir):
+def plot_entropy_curves(
+    results,
+    raw_score,
+    normalized_score,
+    output_dir,
+    title="Full ovarian dataset: percolation entropy curves",
+    output_stem="full_percolation_entropy_curves",
+):
     ent_real = results["ent_real"]
     ent_perm = results["ent_perm"]
     threshold = results["pbond"][: len(ent_real)]
@@ -141,11 +148,7 @@ def plot_entropy_curves(results, raw_score, normalized_score, output_dir):
         label="Absolute difference integrated for raw score",
     )
 
-    ax.set_title(
-        "Full ovarian dataset: percolation entropy curves",
-        fontsize=16,
-        pad=14,
-    )
+    ax.set_title(title, fontsize=16, pad=14)
     ax.set_xlabel("Edge activation threshold", fontsize=12)
     ax.set_ylabel("Connected-component entropy (bits)", fontsize=12)
     ax.set_xlim(threshold.min(), threshold.max())
@@ -166,10 +169,11 @@ def plot_entropy_curves(results, raw_score, normalized_score, output_dir):
         fontsize=10,
     )
     fig.tight_layout()
-    output = output_dir / "full_percolation_entropy_curves.png"
-    fig.savefig(output, dpi=300, bbox_inches="tight", facecolor="white")
+    outputs = [output_dir / f"{output_stem}.png", output_dir / f"{output_stem}.pdf"]
+    for output in outputs:
+        fig.savefig(output, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
-    return output
+    return outputs
 
 
 def cluster_colors(n_clusters):
@@ -283,10 +287,11 @@ def main():
     if percolation_file.exists() and score_file.exists():
         results = load_results(percolation_file)
         raw_score, normalized_score = load_scores(score_file)
-        entropy_path = plot_entropy_curves(
+        entropy_paths = plot_entropy_curves(
             results, raw_score, normalized_score, output_dir
         )
-        print(entropy_path)
+        for entropy_path in entropy_paths:
+            print(entropy_path)
     else:
         print(
             "Skipping percolation entropy plot because its existing inputs are missing: "

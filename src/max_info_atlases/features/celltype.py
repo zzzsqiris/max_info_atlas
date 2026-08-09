@@ -107,8 +107,8 @@ def _extract_pca(adata, n_pcs: int = 50) -> np.ndarray:
     
     # Standard preprocessing
     sc.pp.log1p(adata_copy)
-    sc.pp.scale(adata_copy)
-    sc.tl.pca(adata_copy, n_comps=n_pcs)
+    sc.pp.scale(adata_copy, zero_center=False)
+    sc.tl.pca(adata_copy, n_comps=n_pcs, zero_center=True)
     
     return adata_copy.obsm['X_pca'].astype(np.float32)
 

@@ -1,0 +1,73 @@
+run_name: "e15_5_whole_embryo_reference_clustering"
+description: "Qiu E15.5 whole-embryo reference PCA50, correlation kNN, and Leiden clustering"
+
+input:
+  adata: MouseWholeEmbryo_MapInfo/reference/whole_embryo/data/processed/qiu_e15_5_whole_embryo_reference_raw.h5ad
+  xy_dir: MouseWholeEmbryo_MapInfo/reference/whole_embryo/data/processed/qiu_reference_xy_unused
+  sections_file: MouseWholeEmbryo_MapInfo/reference/whole_embryo/data/processed/qiu_e15_5_whole_embryo_reference_sections.npy
+
+output:
+  base_dir: MouseWholeEmbryo_MapInfo/reference/whole_embryo/results/reference_clustering
+  features_dir: features
+  graphs_dir: graphs
+  clustering_dir: clustering
+  percolation_dir: percolation_results
+  edge_lists_dir: edge_lists
+  jobs_dir: jobs
+  logs_dir: logs
+  scores_csv: e15_5_whole_embryo_reference_percolation_scores.csv
+  reduced_scores_csv: e15_5_whole_embryo_reference_percolation_scores_reduced.csv
+
+steps:
+  features:
+    data_types:
+      - pca50
+
+  graphs:
+    k: 15
+    distances:
+      - correlation
+
+  clustering:
+    leiden:
+      enabled: true
+      data_types:
+        - pca50
+      distances:
+        - correlation
+      n_resolutions: 50
+      resolution_log_min: -2.0
+      resolution_log_max: 2.0
+      random_seed: 42
+
+  percolation:
+    max_k: 500
+    pbond_steps: 101
+
+  aggregation:
+    output_csv: e15_5_whole_embryo_reference_percolation_scores.csv
+
+hpc:
+  conda_env: xenium-mapinfo
+  default_chunk_size: 1
+  resources:
+    features:
+      memory: "192G"
+      runtime: "24:00:00"
+      chunk_size: 1
+    graphs:
+      memory: "32G"
+      runtime: "12:00:00"
+      chunk_size: 1
+    clustering:
+      memory: "12G"
+      runtime: "2:00:00"
+      chunk_size: 1
+    percolation:
+      memory: "32G"
+      runtime: "8:00:00"
+      chunk_size: 1
+    aggregation:
+      memory: "4G"
+      runtime: "1:00:00"
+      chunk_size: 1

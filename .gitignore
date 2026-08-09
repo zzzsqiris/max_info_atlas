@@ -39,3 +39,14 @@ XeniumOvarianReproduction/results/
 !XeniumOvarianReproduction/README.md
 !XeniumOvarianReproduction/scripts/
 !XeniumOvarianReproduction/scripts/**
+
+# Whole-embryo Map Information data and generated outputs
+MouseWholeEmbryo_MapInfo/**/data/
+MouseWholeEmbryo_MapInfo/**/results/
+MouseWholeEmbryo_MapInfo/**/logs/
+MouseWholeEmbryo_MapInfo/**/figures/
+MouseWholeEmbryo_MapInfo/**/tmp/
+
+# Historical experiment snapshots stay local/Hoffman2; track only their index
+MouseWholeEmbryo_MapInfo/archive/*
+!MouseWholeEmbryo_MapInfo/archive/README.md

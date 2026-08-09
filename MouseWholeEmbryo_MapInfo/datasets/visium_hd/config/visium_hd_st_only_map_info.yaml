@@ -1,0 +1,73 @@
+run_name: "visium_hd_st_only_map_info"
+description: "Visium HD mouse embryo expression-only PCA50, correlation kNN, Leiden sweep, and Map Information"
+
+input:
+  adata: MouseWholeEmbryo_MapInfo/datasets/visium_hd/data/processed/mouse_embryo_visium_hd_raw.h5ad
+  xy_dir: MouseWholeEmbryo_MapInfo/datasets/visium_hd/data/processed/visium_hd_st_only_mapinfo/xy_coordinates
+  sections_file: MouseWholeEmbryo_MapInfo/datasets/visium_hd/data/processed/visium_hd_st_only_mapinfo/Sections.npy
+
+output:
+  base_dir: MouseWholeEmbryo_MapInfo/datasets/visium_hd/results/st_only_map_info
+  features_dir: features
+  graphs_dir: graphs
+  clustering_dir: clustering
+  percolation_dir: percolation_results
+  edge_lists_dir: edge_lists
+  jobs_dir: jobs
+  logs_dir: logs
+  scores_csv: visium_hd_st_only_map_info_scores.csv
+  reduced_scores_csv: visium_hd_st_only_map_info_scores_reduced.csv
+
+steps:
+  features:
+    data_types:
+      - pca50
+
+  graphs:
+    k: 15
+    distances:
+      - correlation
+
+  clustering:
+    leiden:
+      enabled: true
+      data_types:
+        - pca50
+      distances:
+        - correlation
+      n_resolutions: 50
+      resolution_log_min: -2.0
+      resolution_log_max: 2.0
+      random_seed: 42
+
+  percolation:
+    max_k: 500
+    pbond_steps: 101
+
+  aggregation:
+    output_csv: visium_hd_st_only_map_info_scores.csv
+
+hpc:
+  conda_env: xenium-mapinfo
+  default_chunk_size: 1
+  resources:
+    features:
+      memory: "32G"
+      runtime: "08:00:00"
+      chunk_size: 1
+    graphs:
+      memory: "32G"
+      runtime: "08:00:00"
+      chunk_size: 1
+    clustering:
+      memory: "16G"
+      runtime: "08:00:00"
+      chunk_size: 1
+    percolation:
+      memory: "32G"
+      runtime: "08:00:00"
+      chunk_size: 1
+    aggregation:
+      memory: "16G"
+      runtime: "08:00:00"
+      chunk_size: 1

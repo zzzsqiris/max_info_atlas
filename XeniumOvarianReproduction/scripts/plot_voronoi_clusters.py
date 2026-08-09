@@ -235,11 +235,13 @@ def facecolors_for_labels(labels):
     return unique_labels, np.asarray([label_to_color[label] for label in labels])
 
 
-def create_tissue_display_mask(xy, bounds):
+def create_tissue_display_mask(
+    xy, bounds, pixel_size=MASK_PIXEL_SIZE, radius=MASK_RADIUS
+):
     """Rasterize cells and dilate locally without filling enclosed tissue holes."""
     xmin, xmax, ymin, ymax = bounds
-    width = max(1, int(np.ceil((xmax - xmin) / MASK_PIXEL_SIZE)))
-    height = max(1, int(np.ceil((ymax - ymin) / MASK_PIXEL_SIZE)))
+    width = max(1, int(np.ceil((xmax - xmin) / pixel_size)))
+    height = max(1, int(np.ceil((ymax - ymin) / pixel_size)))
 
     x_index = np.floor((xy[:, 0] - xmin) / (xmax - xmin) * width).astype(int)
     y_index = np.floor((xy[:, 1] - ymin) / (ymax - ymin) * height).astype(int)
@@ -251,10 +253,10 @@ def create_tissue_display_mask(xy, bounds):
 
     x_spacing = (xmax - xmin) / width
     y_spacing = (ymax - ymin) / height
-    x_radius = int(np.ceil(MASK_RADIUS / x_spacing))
-    y_radius = int(np.ceil(MASK_RADIUS / y_spacing))
+    x_radius = int(np.ceil(radius / x_spacing))
+    y_radius = int(np.ceil(radius / y_spacing))
     yy, xx = np.ogrid[-y_radius : y_radius + 1, -x_radius : x_radius + 1]
-    footprint = (xx * x_spacing) ** 2 + (yy * y_spacing) ** 2 <= MASK_RADIUS**2
+    footprint = (xx * x_spacing) ** 2 + (yy * y_spacing) ** 2 <= radius**2
     return binary_dilation(occupied, structure=footprint)
 
 
@@ -273,7 +275,15 @@ def add_tissue_display_mask(ax, tissue_mask, bounds):
 
 
 def plot_resolution(
-    polygons, bounds, tissue_mask, labels, resolution, score_row, output_dir
+    polygons,
+    bounds,
+    tissue_mask,
+    labels,
+    resolution,
+    score_row,
+    output_dir,
+    title=None,
+    output_stem=None,
 ):
     unique_labels, facecolors = facecolors_for_labels(labels)
     if len(unique_labels) != score_row["number_of_types"]:
@@ -298,12 +308,13 @@ def plot_resolution(
     ax.set_aspect("equal", adjustable="box")
     ax.set_xlabel("X coordinate", fontsize=12)
     ax.set_ylabel("Y coordinate", fontsize=12)
-    ax.set_title(
-        f"Ovarian Leiden Voronoi clusters, resolution {resolution:.3f}\n"
-        f"{len(unique_labels)} types | Raw Map Information: {score_row['raw_score']:.6f}",
-        fontsize=16,
-        pad=14,
-    )
+    if title is None:
+        title = (
+            f"Ovarian Leiden Voronoi clusters, resolution {resolution:.3f}\n"
+            f"{len(unique_labels)} types | "
+            f"Raw Map Information: {score_row['raw_score']:.6f}"
+        )
+    ax.set_title(title, fontsize=16, pad=14)
     _, counts = np.unique(labels, return_counts=True)
     handles = []
     for label, count, color in zip(unique_labels, counts, cluster_colors(len(unique_labels))):
@@ -334,10 +345,13 @@ def plot_resolution(
     )
     fig.tight_layout()
 
-    output = output_dir / f"voronoi_clusters_{format_resolution_dirname(resolution)}.png"
-    fig.savefig(output, dpi=300, bbox_inches="tight", facecolor="white")
+    if output_stem is None:
+        output_stem = f"voronoi_clusters_{format_resolution_dirname(resolution)}"
+    outputs = [output_dir / f"{output_stem}.png", output_dir / f"{output_stem}.pdf"]
+    for output in outputs:
+        fig.savefig(output, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
-    return output
+    return outputs
 
 
 def record_stage(benchmark, name, started):
@@ -405,7 +419,7 @@ def main():
     outputs = []
     for resolution in resolutions:
         started = time.perf_counter()
-        output = plot_resolution(
+        plot_outputs = plot_resolution(
             polygons,
             bounds,
             tissue_mask,
@@ -414,7 +428,7 @@ def main():
             score_rows[resolution],
             output_dir,
         )
-        outputs.append(output)
+        outputs.extend(plot_outputs)
         record_stage(benchmark, f"render_{resolution:.3f}", started)
 
     benchmark["total_seconds"] = time.perf_counter() - total_started
